@@ -29,6 +29,7 @@ class ImageDataset(Dataset):
         img = self.__resize(img, (256, 256))
         if self.input_size is not None:
             modified_img = self.__resize(img, self.input_size)
+            modified_img = self.__resize(modified_img, (256, 256))
             modified_img = modified_img.astype(np.float32) / 255.0
             modified_img = self.transform(modified_img)
 
