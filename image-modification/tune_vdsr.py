@@ -1,10 +1,7 @@
-"""
-Training script for U-Net with Ray Tune
-Uses Combined Loss (MSE + Charbonnier + Perceptual)
-"""
 
 import os
 import torch
+import torch.nn as nn
 import numpy as np
 from torch.utils.data import DataLoader, random_split
 from ray import tune
@@ -14,9 +11,8 @@ from ray.air import session
 from ray.air.checkpoint import Checkpoint
 import tempfile
 
-from models.image_denoising import UNet
+from models.image_sr import VDSR
 from data.dataset import ImageDataset
-from loss_functions import CombinedLoss, CharbonnierLoss, PerceptualLoss
 
 
 def set_seed(seed: int = 42):
@@ -27,34 +23,27 @@ def set_seed(seed: int = 42):
     torch.backends.cudnn.benchmark = False
 
 
-def train_unet(config, data_dir: str, checkpoint_dir: str = None):
+def train_vdsr(config, data_dir: str, checkpoint_dir: str = None):
     
     set_seed(42)
     
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    
-    model = UNet(
+    model = VDSR(
         in_channels=config["in_channels"],
-        init_features=config["init_features"],
-        use_bnorm=config["use_bnorm"],
-        residual=config["residual"]
+        num_layers=config["num_layers"],
+        num_features=config["num_features"]
     ).to(device)
     
-    criterion = CombinedLoss(
-        charbonnier_loss=CharbonnierLoss(),
-        perceptual_loss=PerceptualLoss().to(device),
-        mse_weight=config["mse_weight"],
-        charbonnier_weight=config["charbonnier_weight"],
-        perceptual_weight=config["perceptual_weight"]
-    ).to(device)
-    
+    criterion = nn.MSELoss().to(device)
     optimizer = torch.optim.Adam(
         model.parameters(),
         lr=config["lr"],
         weight_decay=config["weight_decay"]
     )
-    
-    full_dataset = ImageDataset(root=data_dir, noise_level=config["noise_level"])
+    full_dataset = ImageDataset(
+        root=data_dir,
+        input_size=(config["input_size"], config["input_size"])
+    )
     train_size = int(0.8 * len(full_dataset))
     val_size = len(full_dataset) - train_size
     train_dataset, val_dataset = random_split(full_dataset, [train_size, val_size])
@@ -74,7 +63,6 @@ def train_unet(config, data_dir: str, checkpoint_dir: str = None):
         num_workers=2,
         pin_memory=True
     )
-    
     if checkpoint_dir:
         checkpoint_path = os.path.join(checkpoint_dir, "checkpoint.pt")
         checkpoint = torch.load(checkpoint_path)
@@ -87,36 +75,33 @@ def train_unet(config, data_dir: str, checkpoint_dir: str = None):
     for epoch in range(start_epoch, config["num_epochs"]):
         model.train()
         train_loss = 0.0
-        for noisy, clean in train_loader:
-            noisy, clean = noisy.to(device), clean.to(device)
+        for lr_img, hr_img in train_loader:
+            lr_img, hr_img = lr_img.to(device), hr_img.to(device)
             
             optimizer.zero_grad()
-            output = model(noisy)
-            loss = criterion(output, clean)
+            output = model(lr_img)
+            loss = criterion(output, hr_img)
             loss.backward()
             optimizer.step()
             
             train_loss += loss.item()
         
         avg_train_loss = train_loss / len(train_loader)
-        
         model.eval()
         val_loss = 0.0
         psnr_total = 0.0
         with torch.no_grad():
-            for noisy, clean in val_loader:
-                noisy, clean = noisy.to(device), clean.to(device)
-                output = model(noisy)
-                loss = criterion(output, clean)
+            for lr_img, hr_img in val_loader:
+                lr_img, hr_img = lr_img.to(device), hr_img.to(device)
+                output = model(lr_img)
+                loss = criterion(output, hr_img)
                 val_loss += loss.item()
-                
-                mse = torch.mean((output - clean) ** 2)
+                mse = torch.mean((output - hr_img) ** 2)
                 psnr = 10 * torch.log10(1.0 / (mse + 1e-10))
                 psnr_total += psnr.item()
         
         avg_val_loss = val_loss / len(val_loader)
         avg_psnr = psnr_total / len(val_loader)
-        
         with tempfile.TemporaryDirectory() as temp_checkpoint_dir:
             checkpoint_path = os.path.join(temp_checkpoint_dir, "checkpoint.pt")
             torch.save({
@@ -136,22 +121,18 @@ def train_unet(config, data_dir: str, checkpoint_dir: str = None):
             }, checkpoint=checkpoint)
 
 
-def main(data_dir: str, num_samples: int = 10, num_epochs: int = 50, noise_level: float = 0.1):
+def main(data_dir: str, num_samples: int = 10, num_epochs: int = 50, input_size: int = 32):
     
     set_seed(42)
     
     config = {
         "in_channels": 3,
-        "init_features": tune.choice([32, 64, 96]),
-        "use_bnorm": tune.choice([True, False]),
-        "residual": tune.choice([True, False]),
+        "num_layers": tune.choice([15, 20, 25]),
+        "num_features": tune.choice([64, 96, 128]),
         "lr": tune.loguniform(1e-4, 1e-2),
         "weight_decay": tune.loguniform(1e-6, 1e-3),
-        "batch_size": tune.choice([4, 8, 16]),
-        "noise_level": noise_level,
-        "mse_weight": tune.uniform(0.5, 2.0),
-        "charbonnier_weight": tune.uniform(0.5, 2.0),
-        "perceptual_weight": tune.uniform(0.05, 0.2),
+        "batch_size": tune.choice([8, 16, 32]),
+        "input_size": input_size,
         "num_epochs": num_epochs
     }
     
@@ -169,13 +150,13 @@ def main(data_dir: str, num_samples: int = 10, num_epochs: int = 50, noise_level
     )
     
     result = tune.run(
-        tune.with_parameters(train_unet, data_dir=data_dir),
+        tune.with_parameters(train_vdsr, data_dir=data_dir),
         resources_per_trial={"cpu": 4, "gpu": 1},
         config=config,
         num_samples=num_samples,
         scheduler=scheduler,
         progress_reporter=reporter,
-        name="unet_tune",
+        name="vdsr_tune",
         local_dir="./ray_results",
         checkpoint_freq=5,
         keep_checkpoints_num=3,
@@ -191,12 +172,10 @@ def main(data_dir: str, num_samples: int = 10, num_epochs: int = 50, noise_level
     print(f"\nBest PSNR: {best_trial.last_result['psnr']:.2f} dB")
     print(f"Best val loss: {best_trial.last_result['val_loss']:.4f}")
     print("="*60)
-    
     best_checkpoint_dir = best_trial.checkpoint.to_directory()
     best_checkpoint_path = os.path.join(best_checkpoint_dir, "checkpoint.pt")
-    
     checkpoint = torch.load(best_checkpoint_path)
-    final_model_path = "./best_unet_model.pth"
+    final_model_path = "./best_vdsr_model.pth"
     torch.save(checkpoint["model_state_dict"], final_model_path)
     print(f"\nBest model saved to: {final_model_path}")
 
@@ -204,7 +183,7 @@ def main(data_dir: str, num_samples: int = 10, num_epochs: int = 50, noise_level
 if __name__ == "__main__":
     import argparse
     
-    parser = argparse.ArgumentParser(description="Train U-Net with Ray Tune")
+    parser = argparse.ArgumentParser(description="Train VDSR with Ray Tune")
     parser.add_argument("--data-dir", type=str, required=True, help="Path to training data directory")
     parser.add_argument("--num-samples", type=int, default=10, help="Number of trials (default: 10)")
     parser.add_argument("--num-epochs", type=int, default=50, help="Number of epochs per trial (default: 50)")

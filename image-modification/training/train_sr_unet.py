@@ -89,9 +89,9 @@ if __name__ == "__main__":
     set_seed(42)
 
     print("Loading dataset...")
-    train_dataset = ImageDataset(root=train_data_dir, noise_level=0.1)
+    train_dataset = ImageDataset(root=train_data_dir, input_size=(32, 32))
     print(f"Total images found: {len(train_dataset)}")
-    val_dataset = ImageDataset(root=val_data_dir, noise_level=0.1)
+    val_dataset = ImageDataset(root=val_data_dir, input_size=(32, 32))
 
     train_loader = DataLoader(
         train_dataset,
