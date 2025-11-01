@@ -7,7 +7,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torchvision.models import vgg16
-from typing import Optional
 
 
 class CharbonnierLoss(nn.Module):
@@ -44,12 +43,13 @@ class CombinedLoss(nn.Module):
     def __init__(
         self,
         charbonnier_loss: nn.Module,
-        perceptual_loss: Optional[nn.Module] = None,
+        perceptual_loss: nn.Module,
         mse_weight: float = 1.0,
         charbonnier_weight: float = 1.0,
         perceptual_weight: float = 0.1
     ):
         super(CombinedLoss, self).__init__()
+        self.mse_weight = mse_weight
         self.charbonnier_loss = charbonnier_loss
         self.perceptual_loss = perceptual_loss
         self.charbonnier_weight = charbonnier_weight
