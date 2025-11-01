@@ -77,7 +77,6 @@ def parse_log_file(log_path):
         return None
 
 def analyze_logs():
-    """Analyze all log files in the logs directory"""
     logs_dir = "logs"
     if not os.path.exists(logs_dir):
         print(f"Logs directory '{logs_dir}' not found!")

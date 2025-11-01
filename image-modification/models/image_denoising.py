@@ -7,7 +7,7 @@ class DnCNN(nn.Module):
     def __init__(
         self,
         in_channels: int = 3,
-        out_channels: Optional[int] = None,
+        out_channels: int = None,
         num_layers: int = 17,
         num_features: int = 64,
         kernel_size: int = 3,
@@ -40,7 +40,7 @@ class DnCNN(nn.Module):
         
         self.dncnn = nn.Sequential(*layers)
     
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, x):
         residual = self.dncnn(x)
         output = x - residual
         
@@ -52,7 +52,7 @@ class UNet(nn.Module):
     def __init__(
         self,
         in_channels: int = 3,
-        out_channels: Optional[int] = None,
+        out_channels: int = None,
         init_features: int = 64,
         use_bnorm: bool = True,
     ):
@@ -96,7 +96,7 @@ class UNet(nn.Module):
         
         self.conv_out = nn.Conv2d(features, out_channels, kernel_size=1)
     
-    def _make_layer(self, in_channels: int, out_channels: int, use_bnorm: bool) -> nn.Sequential:
+    def _make_layer(self, in_channels: int, out_channels: int, use_bnorm: bool):
         layers = [
             nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1, bias=not use_bnorm),
             nn.BatchNorm2d(out_channels) if use_bnorm else nn.Identity(),
@@ -107,7 +107,7 @@ class UNet(nn.Module):
         ]
         return nn.Sequential(*layers)
     
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, x):
 
         enc1 = self.encoder1(x)
         enc2 = self.encoder2(self.pool1(enc1))
