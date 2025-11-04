@@ -28,7 +28,7 @@ class ImageDataset(Dataset):
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         img = self.__resize(img, (256, 256))
         if self.input_size is not None:
-            modified_img = self.__resize(img, self.input_size)
+            modified_img = self.__resize(img, self.input_size, interpolation=cv2.INTER_AREA)
             modified_img = modified_img.astype(np.float32) / 255.0
             modified_img = self.transform(modified_img)
 
@@ -46,6 +46,6 @@ class ImageDataset(Dataset):
         noisy_img = torch.clamp(noisy_img, 0.0, 1.0)
         return noisy_img
 
-    def __resize(self, img: Any, size: Tuple[int, int]) -> Any:
-        img = cv2.resize(img, size)
+    def __resize(self, img: Any, size: Tuple[int, int], interpolation: int = None) -> Any:
+        img = cv2.resize(img, size, interpolation=interpolation or cv2.INTER_LINEAR)
         return img

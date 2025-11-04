@@ -125,7 +125,7 @@ def validate(model, loader, criterion, device, logger=None, epoch=None):
     
     return avg_loss, avg_psnr
 
-def train_model(data, init_features, input_size, epochs=10):
+def train_model(data, init_features, input_size, epochs=10, patience=10):
     try:
         slurm_job_id = os.environ.get('SLURM_JOB_ID', None)
         
@@ -166,10 +166,12 @@ def train_model(data, init_features, input_size, epochs=10):
         )
         
         logger.info("Optimizer: Adam, LR: 1e-4, Weight Decay: 1e-5")
+        logger.info(f"Early Stopping: Enabled with patience={patience} epochs")
         logger.info("-" * 80)
 
         best_val_loss = float("inf")
         best_val_psnr = 0.0
+        epochs_without_improvement = 0
         training_start_time = time.time()
         
         training_metrics = {
@@ -216,6 +218,7 @@ def train_model(data, init_features, input_size, epochs=10):
                 improvement = best_val_loss - val_loss
                 best_val_loss = val_loss
                 best_val_psnr = val_psnr
+                epochs_without_improvement = 0
                 model_filename = f"best_model_SR-unet_init{init_features}"
                 if slurm_job_id:
                     model_filename += f"_job{slurm_job_id}"
@@ -224,7 +227,19 @@ def train_model(data, init_features, input_size, epochs=10):
                 logger.info(f"  *** NEW BEST MODEL! Improvement: {improvement:.6f}")
                 logger.info(f"  Saved as: {model_filename}")
             else:
+                epochs_without_improvement += 1
                 logger.info(f"  No improvement (best: {best_val_loss:.6f})")
+                logger.info(f"  Epochs without improvement: {epochs_without_improvement}/{patience}")
+            
+            # Early stopping check
+            if epochs_without_improvement >= patience:
+                logger.info("="*80)
+                logger.info(f"EARLY STOPPING triggered after {epoch + 1} epochs")
+                logger.info(f"No improvement for {patience} consecutive epochs")
+                logger.info(f"Best validation loss: {best_val_loss:.6f}")
+                logger.info(f"Best validation PSNR: {best_val_psnr:.2f} dB")
+                logger.info("="*80)
+                break
             
             logger.info("-" * 40)
         
@@ -277,6 +292,7 @@ if __name__ == "__main__":
     parser.add_argument("--init_features", type=int, default=10, help="Initial number of features")
     parser.add_argument("--epochs", type=int, default=10, help="Number of training epochs")
     parser.add_argument("--input_size", type=int, default=32, help="Input size for the model")
+    parser.add_argument("--patience", type=int, default=10, help="Early stopping patience (epochs)")
 
     args = parser.parse_args()
     
@@ -285,6 +301,7 @@ if __name__ == "__main__":
     print(f"Init Features: {args.init_features}")
     print(f"Epochs: {args.epochs}")
     print(f"Input Size: {args.input_size}")
+    print(f"Early Stopping Patience: {args.patience}")
     print(f"Start Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     
     if 'SLURM_JOB_ID' in os.environ:
@@ -326,7 +343,7 @@ if __name__ == "__main__":
     print("Starting training...")
     experiment_start_time = time.time()
 
-    best_val_loss, best_val_psnr = train_model((train_loader, val_loader), args.init_features, args.input_size, args.epochs)
+    best_val_loss, best_val_psnr = train_model((train_loader, val_loader), args.init_features, args.input_size, args.epochs, args.patience)
 
     experiment_total_time = time.time() - experiment_start_time
     
