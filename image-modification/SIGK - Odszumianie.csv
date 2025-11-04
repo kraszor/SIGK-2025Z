@@ -1,0 +1,3 @@
+Metoda,PSNR,SSIM,LPIPS,SNE
+UNET,21.59dB,0.67,0.30,19263.82
+Bilateral denioser,16.27dB,0.24,0.60,63715.57

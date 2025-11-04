@@ -1,0 +1,5 @@
+Metoda,PSNR,SSIM,LPIPS,SNE
+SRUNET (32 x 32),17.73dB,0.3724,0.5996,45342.47
+SRUNET (64 x 64),19.24dB,0.5286,0.4620,31862.07
+Bicubic interpolation (32 x 32),17.86dB,0.41,0.59,44016.80
+Bicubic interpolation (64 x 64),19.49dB,0.58,0.43,30009.42
