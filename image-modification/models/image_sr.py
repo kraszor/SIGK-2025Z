@@ -69,7 +69,7 @@ class SRUNet(nn.Module):
         use_bnorm: bool = True,
         input_size: int = 32
     ):
-        upscale_factor = 256 // 32
+        upscale_factor = 256 // input_size
         super(SRUNet, self).__init__()
         
         self.in_channels = in_channels
