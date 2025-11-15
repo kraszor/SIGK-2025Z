@@ -11,7 +11,7 @@ class ToneMappingDataset(Dataset):
     def __init__(self, dir_path: str):
         self.dir_path = dir_path
         self.files = [f for f in os.listdir(dir_path) if f.endswith(".exr")]
-
+        print(dir_path)
     def __len__(self) -> int:
         return len(self.files)
 
@@ -21,7 +21,9 @@ class ToneMappingDataset(Dataset):
 
         hdr_image = read_exr_file(file_path)
         hdr_image = normalize_hdr_image(hdr_image)
-        e_low, e_mid, e_high = generate_exposures(hdr_image)
+
+        hdr_image_for_math = torch.tensor(hdr_image , dtype=torch.float32)
+        e_low, e_mid, e_high = generate_exposures(hdr_image_for_math)
 
         low_exposure = torch.tensor(e_low, dtype=torch.float32).permute(2, 0, 1)
         mid_exposure = torch.tensor(e_mid, dtype=torch.float32).permute(2, 0, 1)
