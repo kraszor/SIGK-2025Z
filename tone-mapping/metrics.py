@@ -1,10 +1,10 @@
-from torch.utils.data import DataLoader
-from skimage.metrics import structural_similarity as ssim
-import torch
 import numpy as np
+import torch
+from brisque import BRISQUE
+from skimage.metrics import structural_similarity as ssim
+
 
 def evaluate_brisque(image: torch.Tensor) -> float:
-
     metric = BRISQUE(url=False)
 
     img_conv = image.cpu().detach().numpy()
@@ -13,6 +13,7 @@ def evaluate_brisque(image: torch.Tensor) -> float:
     img_process = (img_conv * 255).astype(np.uint8)
     return metric.score(img=img_process)
 
+
 # def evaluate_SSIM_batch(model: nn.Module, data: DataLoader, device: str):
 #     model.eval()
 #     total_score = 0
@@ -20,9 +21,9 @@ def evaluate_brisque(image: torch.Tensor) -> float:
 #     with torch.no_grad():
 #         for modified_img, original_img in data:
 #             modified_img, original_img = modified_img.to(device), original_img.to(device)
-#             generated_img = model(modified_img)  
+#             generated_img = model(modified_img)
 
-#             score = SSIM(generated_img, original_img) 
+#             score = SSIM(generated_img, original_img)
 
 #             total_score += score.item()
 #             num_batches += 1
@@ -31,7 +32,6 @@ def evaluate_brisque(image: torch.Tensor) -> float:
 #     return average_score
 
 
-
-def evaluate_SSIM(original, generated) :
+def evaluate_SSIM(original, generated):
     score, dif = ssim(original, generated, full=True)
     return score
