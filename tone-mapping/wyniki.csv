@@ -1,5 +1,6 @@
-Metoda;SSIM;BRISQUE;
-input_97;0.2110;21.7435;
-Reinhard_Operator ;0.5572;23.7442;
-Mantiuk_Operator ;0.5419;40.5268;
-Learned_Operator ;0.6257;27.5387;
+Metoda,SSIM,BRISQUE
+input_97,0.2110,21.7435
+Reinhard_Operator,0.5572,23.7442
+Mantiuk_Operator,0.5419,40.5268
+Learned_Operator,0.6257,27.5387
+
