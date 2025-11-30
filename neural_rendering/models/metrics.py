@@ -33,6 +33,11 @@ def hausdorff_distance_metric(original, generated):
     if torch.is_tensor(generated):
         generated = generated.cpu().numpy()
 
+    if len(original.shape) == 3 and original.shape[0] in [1, 3, 4]:
+        original = original.transpose(1, 2, 0)
+    if len(generated.shape) == 3 and generated.shape[0] in [1, 3, 4]:
+        generated = generated.transpose(1, 2, 0)
+
     if original.max() <= 1.0:
         original = (original * 255).astype("uint8")
     else:
@@ -43,14 +48,23 @@ def hausdorff_distance_metric(original, generated):
     else:
         generated = generated.astype("uint8")
 
-    if len(original.shape) == 3:
+    if len(original.shape) == 3 and original.shape[2] == 3:
         original = cv2.cvtColor(original, cv2.COLOR_RGB2GRAY)
-    if len(generated.shape) == 3:
+    elif len(original.shape) == 3 and original.shape[2] == 1:
+        original = original.squeeze(2)
+    
+    if len(generated.shape) == 3 and generated.shape[2] == 3:
         generated = cv2.cvtColor(generated, cv2.COLOR_RGB2GRAY)
+    elif len(generated.shape) == 3 and generated.shape[2] == 1:
+        generated = generated.squeeze(2)
     t_lower = 50
     t_upper = 150
     edge_original = cv2.Canny(original, t_lower, t_upper)
+    cv2.imshow("Edge Original", edge_original)
+    cv2.waitKey(1)
     edge_generated = cv2.Canny(generated, t_lower, t_upper)
+    cv2.imshow("Edge Generated", edge_generated)
+    cv2.waitKey(1)
     return hausdorff_distance(edge_original, edge_generated)
 
 
