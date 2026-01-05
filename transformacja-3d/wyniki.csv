@@ -1,0 +1,7 @@
+Metoda,IoU,Dice,Chamfer
+Bunny,0.955504,0.977246,0.065966
+Dragon,0.952736,0.975796,0.069441
+Armadillo,0.983051,0.991453,0.063780
+Bunny-flow_asian_dragon,0.149123,0.259542,0.264184
+Dragon-flow_asian_dragon,0.294840,0.455408,0.184409
+Armadillo-flow_asian_dragon,0.115854,0.207650,0.383090
